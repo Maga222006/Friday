@@ -28,7 +28,8 @@ export function ConfigEditor({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
 
-  const check = useMemo(() => checkConfig(text), [text]);
+  // nothing to validate until the file has loaded (a failed load shouldn't look like a YAML error)
+  const check = useMemo(() => (loaded ? checkConfig(text) : { errors: [], warnings: [] }), [loaded, text]);
   const dirty = loaded !== null && text !== loaded.text;
 
   const load = async () => {

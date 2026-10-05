@@ -11,15 +11,30 @@ export const dynamic = "force-dynamic";
 const CONFIG_PATH = process.env.CONFIG_PATH ?? path.resolve(/* turbopackIgnore: true */ process.cwd(), "..", "config.yaml");
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+/** This machine, your home network (private IPs, *.local) or your Tailscale network. */
+function isTrustedHost(host: string): boolean {
+  if (LOCAL_HOSTS.has(host) || host.endsWith(".local") || host.endsWith(".ts.net")) return true;
+  const ip = host.match(/^(\d+)\.(\d+)\.\d+\.\d+$/);
+  if (!ip) return false;
+  const [a, b] = [Number(ip[1]), Number(ip[2])];
+  return (
+    a === 10 ||
+    (a === 192 && b === 168) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 100 && b >= 64 && b <= 127) // Tailscale
+  );
+}
+
 /**
- * The file holds model settings and MCP credentials, so only the local machine
- * may read or write it. The custom header makes browsers preflight any
- * cross-site request, which this route never approves.
+ * The file holds model settings and MCP credentials, so only trusted addresses
+ * may read or write it: a site on the internet can't, even through DNS tricks,
+ * because its own hostname is refused. The custom header makes browsers
+ * preflight any cross-site request, which this route never approves.
  */
 function refuse(req: NextRequest): NextResponse | null {
   const host = (req.headers.get("host") ?? "").replace(/:\d+$/, "");
-  if (!LOCAL_HOSTS.has(host) && process.env.CONFIG_EDITOR_ALLOW_REMOTE !== "1") {
-    return NextResponse.json({ error: "The config editor only works on localhost." }, { status: 403 });
+  if (!isTrustedHost(host) && process.env.CONFIG_EDITOR_ALLOW_REMOTE !== "1") {
+    return NextResponse.json({ error: "The config editor only works from this machine or your home network." }, { status: 403 });
   }
   if (req.headers.get("x-friday-config") !== "1") {
     return NextResponse.json({ error: "Missing x-friday-config header." }, { status: 403 });
