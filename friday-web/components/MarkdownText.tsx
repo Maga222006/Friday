@@ -14,13 +14,26 @@ import rehypeKatex from "rehype-katex";
 // Gemini mixes $…$, \(…\) and \[…\]; turn them all into $-math, but keep "$5" as money
 const preprocess = (text: string) => escapeCurrencyDollars(normalizeMathDelimiters(text));
 
+/** navigator.clipboard only exists on HTTPS/localhost; over plain-HTTP LAN fall back to execCommand. */
+async function copyText(text: string) {
+  if (navigator.clipboard) return navigator.clipboard.writeText(text);
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand("copy");
+  area.remove();
+}
+
 export function CopyButton({ text, className = "" }: { text: string; className?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
       onClick={() => {
-        void navigator.clipboard.writeText(text).then(() => {
+        void copyText(text).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         });

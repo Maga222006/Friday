@@ -111,9 +111,9 @@ services:
   web:
     build:
       context: ./friday-web
-      args:
-        NEXT_PUBLIC_LANGGRAPH_API_URL: http://localhost:2026
-        NEXT_PUBLIC_FRIDAY_API: http://localhost:8100
+      args:  # the UI forwards /aegra and /friday to these (see friday-web/next.config.ts)
+        AEGRA_INTERNAL_URL: http://friday:2026
+        FRIDAY_INTERNAL_URL: http://bot:8100
         NEXT_PUBLIC_ASSISTANT_ID: friday
     container_name: friday-web
     restart: unless-stopped
@@ -124,6 +124,7 @@ services:
     ports:
       - "3000:3000"
     depends_on:
+      - friday
       - bot
 
 volumes:

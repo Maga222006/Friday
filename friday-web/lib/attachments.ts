@@ -25,7 +25,8 @@ export const fileAttachments: AttachmentAdapter = {
       throw new Error(`${file.name} is too big (max ${MAX_BYTES / 1024 / 1024} MB)`);
     }
     return {
-      id: crypto.randomUUID(),
+      // randomUUID only exists on HTTPS/localhost; plain-HTTP LAN access needs the fallback
+      id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       type: file.type.startsWith("image/") ? "image" : "file",
       name: file.name,
       contentType: file.type || "application/octet-stream",

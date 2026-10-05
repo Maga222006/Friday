@@ -12,15 +12,18 @@ export type Channel = "web" | "telegram" | "voice";
 
 export const CHANNEL = "web";
 const ASSISTANT = process.env.NEXT_PUBLIC_ASSISTANT_ID ?? "friday";
-const FRIDAY_API = process.env.NEXT_PUBLIC_FRIDAY_API ?? "http://localhost:8100";
+
+// Aegra and the bot API are reached through this app (next.config.ts forwards
+// /aegra and /friday), so the UI works from any device that can open the page.
+// The SDK needs an absolute URL; during server rendering nothing is fetched.
+const ORIGIN = typeof window === "undefined" ? "http://localhost:3000" : window.location.origin;
+const FRIDAY_API = `${ORIGIN}/friday`;
 
 /** How often the UI re-checks Aegra for writes made elsewhere (Telegram,
  *  schedules, pushes). Aegra has no thread-level stream, so we poll. */
 export const POLL_MS = 3000;
 
-export const client = new Client({
-  apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL ?? "http://localhost:2026",
-});
+export const client = new Client({ apiUrl: `${ORIGIN}/aegra` });
 
 /** The Ctx the agent expects — same shape bridge.py sends. */
 export const contextFor = (user: User, channel: string = CHANNEL) => ({ user, channel });

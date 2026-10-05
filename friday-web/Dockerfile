@@ -6,13 +6,13 @@ RUN npm ci
 
 COPY . .
 
-# NEXT_PUBLIC_* are baked into the browser bundle at build time. The browser
-# runs on your machine, so these are the host-published ports, not service names.
-ARG NEXT_PUBLIC_LANGGRAPH_API_URL=http://localhost:2026
-ARG NEXT_PUBLIC_FRIDAY_API=http://localhost:8100
+# The browser talks only to this app; next.config.ts forwards /aegra and /friday
+# to these addresses (service names inside the compose network).
+ARG AEGRA_INTERNAL_URL=http://friday:2026
+ARG FRIDAY_INTERNAL_URL=http://bot:8100
 ARG NEXT_PUBLIC_ASSISTANT_ID=friday
-ENV NEXT_PUBLIC_LANGGRAPH_API_URL=$NEXT_PUBLIC_LANGGRAPH_API_URL \
-    NEXT_PUBLIC_FRIDAY_API=$NEXT_PUBLIC_FRIDAY_API \
+ENV AEGRA_INTERNAL_URL=$AEGRA_INTERNAL_URL \
+    FRIDAY_INTERNAL_URL=$FRIDAY_INTERNAL_URL \
     NEXT_PUBLIC_ASSISTANT_ID=$NEXT_PUBLIC_ASSISTANT_ID \
     NEXT_TELEMETRY_DISABLED=1
 
@@ -20,12 +20,16 @@ RUN npm run build && npm prune --omit=dev
 
 FROM node:22-alpine
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+ARG AEGRA_INTERNAL_URL=http://friday:2026
+ARG FRIDAY_INTERNAL_URL=http://bot:8100
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 \
+    AEGRA_INTERNAL_URL=$AEGRA_INTERNAL_URL FRIDAY_INTERNAL_URL=$FRIDAY_INTERNAL_URL
 
 COPY --from=build --chown=node:node /app/package.json ./
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/.next ./.next
 COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /app/next.config.ts ./
 
 USER node
 EXPOSE 3000
