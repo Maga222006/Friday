@@ -1,0 +1,132 @@
+# Whole stack:      docker compose up --build -d
+#   web UI          http://localhost:3000
+#   Aegra           http://localhost:2026
+#   bot API         http://localhost:8100   (+ Telegram polling)
+#   voice worker    connects out to LiveKit Cloud
+# Database only:    docker compose up postgres -d   (for `aegra dev` + local processes)
+#
+# Secrets come from .env at runtime. Inside the network services reach each
+# other by name, so the localhost hosts in .env are overridden below.
+
+x-python: &python
+  build: .
+  image: friday-python  # one image, three services
+  restart: unless-stopped
+  env_file: .env
+  environment: &python-env
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    APP_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-friday}:${POSTGRES_PASSWORD:-friday_secret}@postgres:5432/friday_app
+    AEGRA_URL: http://friday:2026
+    PUSH_URL: http://bot:8100/push
+  volumes:
+    - ./src:/app/src:ro
+    - ./config.yaml:/app/config.yaml:ro
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: friday-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-friday}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-friday_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-friday}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-friday}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: friday-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Aegra: serves the friday + researcher graphs, threads, store, crons
+  friday:
+    <<: *python
+    container_name: friday-api
+    environment:
+      <<: *python-env
+      AEGRA_CONFIG: aegra.json
+      AUTH_TYPE: ${AUTH_TYPE:-noop}
+      PORT: "2026"
+      REDIS_BROKER_ENABLED: "true"
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "2026:2026"
+    volumes:
+      - ./src:/app/src:ro
+      - ./aegra.json:/app/aegra.json:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - workspace:/app/workspace
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:2026/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Telegram polling + FastAPI (/users, /push, /voice/token)
+  bot:
+    <<: *python
+    container_name: friday-bot
+    command: ["python", "-m", "friday.channels.telegram.bot"]
+    environment:
+      <<: *python-env
+      PUSH_HOST: 0.0.0.0
+    ports:
+      - "8100:8100"
+    depends_on:
+      friday:
+        condition: service_healthy
+
+  # LiveKit agent worker (voice mode)
+  voice:
+    <<: *python
+    container_name: friday-voice
+    command: ["python", "-m", "friday.channels.voice.worker", "start"]
+    depends_on:
+      friday:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./friday-web
+      args:
+        NEXT_PUBLIC_LANGGRAPH_API_URL: http://localhost:2026
+        NEXT_PUBLIC_FRIDAY_API: http://localhost:8100
+        NEXT_PUBLIC_ASSISTANT_ID: friday
+    container_name: friday-web
+    restart: unless-stopped
+    environment:
+      CONFIG_PATH: /config/config.yaml   # the ⚙ Config editor reads/writes this
+    volumes:
+      - ./config.yaml:/config/config.yaml
+    ports:
+      - "3000:3000"
+    depends_on:
+      - bot
+
+volumes:
+  postgres_data:
+  redis_data:
+  workspace:

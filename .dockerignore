@@ -1,0 +1,10 @@
+# keep the build context small and secrets out of images (.env is passed at runtime)
+.env
+.git
+.idea
+.venv
+**/__pycache__
+**/.DS_Store
+workspace
+test.py
+friday-web

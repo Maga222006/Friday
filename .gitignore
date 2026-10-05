@@ -1,0 +1,14 @@
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.venv
+.env
+config.yaml
+
+.DS_Store
+.idea/
+workspace/
+config.yaml.bak

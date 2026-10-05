@@ -1,0 +1,20 @@
+{
+  "graphs": {
+    "friday": "./src/friday/agent/graph.py:build_graph",
+    "researcher": "./src/friday/agent/subagents/research.py:research_graph"
+  },
+  "store": {
+    "index": {
+      "embed": "google_genai:gemini-embedding-001",
+      "dims": 3072,
+      "fields": ["fact"]
+    }
+  },
+  "http": {
+    "cors": {
+      "allow_origins": ["http://localhost:3000", "http://localhost:3001"],
+      "allow_credentials": true
+    }
+  },
+  "env": ".env"
+}

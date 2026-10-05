@@ -1,0 +1,7 @@
+node_modules
+.next
+.env*.local
+_unused
+friday-web
+tsconfig.tsbuildinfo
+**/.DS_Store

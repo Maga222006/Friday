@@ -1,0 +1,41 @@
+[project]
+name = "friday"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Maga222006", email = "maga222006@mail.ru" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=1.0.0",
+    "ag-ui-langgraph==0.0.42",
+    "copilotkit>=0.1.95",
+    "deepagents>=0.7.8",
+    "fastapi>=0.141.1",
+    "google-genai>=2.19.0",
+    "langchain-core>=1.6.0",
+    "langchain-openai>=1.6.0",
+    "langgraph>=1.2.11",
+    "langgraph-checkpoint-sqlite>=3.1.1",
+    "python-dotenv>=1.2.3",
+    "uvicorn>=0.52.4",
+    "sqlmodel>=0.0.39",
+    "aegra-cli>=0.10.4",
+    "timezonefinder>=8.3.0",
+    "geopy>=2.5.0",
+    "langchain-community>=0.4.2",
+    "langchain-tavily>=0.2.18",
+    "homeassistant-api>=6.0.1",
+    "aiogram>=3.31.0",
+    "livekit-agents[cartesia,deepgram,google,langchain,openai,silero]~=1.5",
+    "livekit-plugins-langgraph>=0.1.1",
+    "livekit-plugins-google>=1.7.1",
+    "psycopg-pool>=3.3.1",
+    "psycopg>=3.3.4",
+    "langchain-mcp-adapters>=0.3.2",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
