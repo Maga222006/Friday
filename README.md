@@ -153,7 +153,8 @@ HTTPS by Caddy (`https` service, `docker/Caddyfile`) with its own local certific
    - **Android:** Settings → Security → Encryption & credentials → Install a certificate → CA certificate.
    - **Mac:** open the file, add it to the System keychain, double-click it → Trust → "Always Trust".
    - **Windows:** open the file → Install Certificate → Local Machine → "Trusted Root Certification Authorities".
-3. Open `https://<machine>`: everything works as on localhost, including voice.
+3. Open `https://<machine>`: everything works as on localhost, including voice. `http://<machine>:3000` redirects
+   there.
 
 Stop any locally running Aegra, bot, worker or `npm run dev` first: they use the same ports, and two bots polling
 Telegram at once conflict.
@@ -205,6 +206,6 @@ microphone permission on the first run.
 
 - There is **no authentication**: anyone who can reach ports 2026, 8100 or 3000 can act as any user. Keep it on
   your machine or a trusted network.
-- The ⚙ Config editor only works from `localhost`.
+- The ⚙ Config editor only works from this machine, the home network or Tailscale.
 - The agent's `/workspace/` backend can run shell commands on the host. Remove it from
   `src/friday/agent/graph.py` if you don't need it.

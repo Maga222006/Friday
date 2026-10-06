@@ -24,6 +24,11 @@ export function createLiveKitVoiceAdapter({
         const user = getUser();
         if (!user) throw new Error("No profile selected");
 
+        // browsers only offer the microphone on https or localhost: say so instead of failing silently
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error(`Voice needs the secure address: open https://${location.hostname}`);
+        }
+
         h.setStatus({ type: "starting" });
 
         const threadId = await getThreadId();
@@ -92,7 +97,18 @@ export function createLiveKitVoiceAdapter({
         });
 
         await room.connect(url, token);
-        await room.localParticipant.setMicrophoneEnabled(true);
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true);
+        } catch (e) {
+          room.removeAllListeners(RoomEvent.Disconnected); // end as "error" below, not "finished"
+          teardown();
+          const denied = e instanceof Error && /NotAllowed|Permission|denied/i.test(`${e.name} ${e.message}`);
+          throw new Error(
+            denied
+              ? "Microphone access is blocked: allow it in the browser's site settings and try again"
+              : `Couldn't start the microphone: ${e instanceof Error ? e.message : e}`,
+          );
+        }
         await room.startAudio().catch(() => {});
 
         h.setStatus({ type: "running" });

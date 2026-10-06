@@ -10,14 +10,24 @@ export function VoiceButton() {
   const live = status === "running" || status === "starting";
 
   if (!live) {
+    // why the last call ended, if it failed (e.g. no microphone on a plain-http page)
+    const error =
+      state?.status.type === "ended" && state.status.reason === "error"
+        ? state.status.error instanceof Error
+          ? state.status.error.message
+          : "Voice mode couldn't start"
+        : null;
     return (
-      <button
-        onClick={connect}
-        className="rounded-xl border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        title="Start voice mode"
-      >
-        Voice
-      </button>
+      <div className="flex items-center gap-2">
+        {error && <span className="max-w-56 text-xs text-red-500">{error}</span>}
+        <button
+          onClick={connect}
+          className="rounded-xl border border-neutral-300 px-3 py-2 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900"
+          title="Start voice mode"
+        >
+          Voice
+        </button>
+      </div>
     );
   }
 

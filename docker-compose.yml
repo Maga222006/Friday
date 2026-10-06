@@ -119,6 +119,7 @@ services:
     restart: unless-stopped
     environment:
       CONFIG_PATH: /config/config.yaml   # the ⚙ Config editor reads/writes this
+      HTTPS_REDIRECT: "1"                # http://<IP>:3000 from other devices → https (friday-web/proxy.ts)
     volumes:
       - ./config.yaml:/config/config.yaml
     ports:
