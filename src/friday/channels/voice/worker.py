@@ -1,13 +1,13 @@
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
-from livekit.plugins.google.beta import GeminiSTT, GeminiTTS
 from langchain_core.messages import AIMessageChunk, AIMessage, SystemMessage
+from livekit.plugins.google.beta import GeminiSTT, GeminiTTS
+from friday.bridge import client, thread_for, _as_text
 from langgraph.pregel.remote import RemoteGraph
-from langgraph_sdk import client
 from livekit.plugins import langchain, silero
 from friday.database.db import get_user
 from friday.agent.context import Ctx
-from friday.bridge import client, thread_for
 from dotenv import load_dotenv
+import asyncio
 import logging
 import os
 
@@ -31,6 +31,22 @@ class VoiceRemoteGraph(RemoteGraph):
                     continue
                 item = (AIMessageChunk(content=msg.get("content", ""), id=msg.get("id")), meta)
             yield item
+
+async def speak_schedules(session: AgentSession, thread_id: str) -> None:
+    seen = None
+    while True:
+        await asyncio.sleep(5)
+        try:
+            msgs = ((await client.threads.get_state(thread_id)).get("values") or {}).get("messages", [])
+        except Exception:
+            continue
+        last = msgs[-1] if msgs else {}
+        asked = next((m for m in reversed(msgs) if m["type"] == "human"), {})
+        reply = _as_text(last.get("content", "")).strip()
+        if (seen and last.get("id") != seen and last.get("type") == "ai"
+                and str(asked.get("content", "")).startswith("[Scheduled") and reply not in ("", "-")):
+            session.say(reply, add_to_chat_ctx=False)
+        seen = last.get("id") or seen
 
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
@@ -73,6 +89,9 @@ async def entrypoint(ctx: JobContext) -> None:
         room=ctx.room,
         agent=Agent(instructions="Speak naturally and briefly. No markdown, no lists."),
     )
+    task = asyncio.create_task(speak_schedules(session, thread_id))
+    async def _stop(): task.cancel()
+    ctx.add_shutdown_callback(_stop)
 
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
