@@ -31,7 +31,7 @@ async def build_graph():
         routes={
             "/workspace/": LocalShellBackend(
                 root_dir="./workspace",
-                virtual_mode=True
+                virtual_mode=False
             )
         }
     )
