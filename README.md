@@ -82,13 +82,20 @@ CRON_POLL_INTERVAL_SECONDS=10
 
 # optional
 VOICE_USER_ID=1                      # who talks to the room mic in console mode
+
+# HTTPS for other devices on your network (see "Use it from your phone / other devices")
+FRIDAY_HOSTS=my-mac.local, 192.168.1.20, localhost
+FRIDAY_DEFAULT_SNI=192.168.1.20
 ```
 
-### `friday-web/.env.local`
+### `friday-web/.env.local` (optional)
+
+The UI reaches Aegra and the bot API through its own server (`/aegra`, `/friday`, see `friday-web/next.config.ts`),
+so it needs no URLs. Only override what differs from the defaults:
 
 ```bash
-NEXT_PUBLIC_LANGGRAPH_API_URL=http://localhost:2026
-NEXT_PUBLIC_FRIDAY_API=http://localhost:8100
+AEGRA_INTERNAL_URL=http://localhost:2026
+FRIDAY_INTERNAL_URL=http://localhost:8100
 NEXT_PUBLIC_ASSISTANT_ID=friday
 ```
 
@@ -131,6 +138,22 @@ docker compose logs -f friday        # agent server logs (also: bot, voice, web)
 docker compose restart friday bot voice   # pick up Python / config.yaml changes (src/ is mounted)
 docker compose down                  # stop everything (data is kept)
 ```
+
+### Use it from your phone / other devices
+
+Browsers only allow the microphone (voice mode) and clipboard on HTTPS, so on your network the UI is served over
+HTTPS by Caddy (`https` service, `docker/Caddyfile`) with its own local certificate authority:
+
+1. In `.env`, list how you reach the machine: `FRIDAY_HOSTS` (its `.local` name from
+   `scutil --get LocalHostName`, its IP from `ipconfig getifaddr en0`, and `localhost`) and `FRIDAY_DEFAULT_SNI`
+   (the IP). Then `docker compose up -d`. Reserve the IP in your router so it doesn't change.
+2. On each device, once: open `http://<machine>/friday-ca.crt` and trust the certificate.
+   - **iPhone / iPad:** allow the download, then Settings → Profile Downloaded → Install, then Settings → General →
+     About → Certificate Trust Settings → turn on "Caddy Local Authority".
+   - **Android:** Settings → Security → Encryption & credentials → Install a certificate → CA certificate.
+   - **Mac:** open the file, add it to the System keychain, double-click it → Trust → "Always Trust".
+   - **Windows:** open the file → Install Certificate → Local Machine → "Trusted Root Certification Authorities".
+3. Open `https://<machine>`: everything works as on localhost, including voice.
 
 Stop any locally running Aegra, bot, worker or `npm run dev` first: they use the same ports, and two bots polling
 Telegram at once conflict.

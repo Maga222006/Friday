@@ -1,5 +1,5 @@
 # Whole stack:      docker compose up --build -d
-#   web UI          http://localhost:3000
+#   web UI          http://localhost:3000  (home network: https://<FRIDAY_HOSTS>)
 #   Aegra           http://localhost:2026
 #   bot API         http://localhost:8100   (+ Telegram polling)
 #   voice worker    connects out to LiveKit Cloud
@@ -127,7 +127,25 @@ services:
       - friday
       - bot
 
+  # HTTPS for the UI on the home network (voice needs it there); see docker/Caddyfile
+  https:
+    image: caddy:2-alpine
+    container_name: friday-https
+    restart: unless-stopped
+    environment:
+      FRIDAY_HOSTS: ${FRIDAY_HOSTS:-localhost}             # e.g. "my-mac.local, 192.168.1.20, localhost"
+      FRIDAY_DEFAULT_SNI: ${FRIDAY_DEFAULT_SNI:-localhost} # the IP from FRIDAY_HOSTS, for https://<IP>
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data   # keeps the local certificate authority stable across restarts
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
   redis_data:
   workspace:
+  caddy_data:

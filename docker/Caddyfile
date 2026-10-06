@@ -1,0 +1,29 @@
+# HTTPS in front of the web UI, so browsers on the home network get the same
+# features as on localhost (microphone for voice, clipboard). Certificates come
+# from Caddy's own local authority: install its root once per device, from
+# http://<this machine>/friday-ca.crt (see README).
+{
+	local_certs
+	skip_install_trust
+	auto_https disable_redirects # the http:// block below redirects, except for the certificate
+	# browsers send no server name when you open https://<IP>; serve that address's certificate then
+	default_sni {$FRIDAY_DEFAULT_SNI:localhost}
+}
+
+# FRIDAY_HOSTS in .env: the names/addresses you open the UI with, comma-separated
+{$FRIDAY_HOSTS:localhost} {
+	reverse_proxy {$FRIDAY_UPSTREAM:web:3000}
+}
+
+# plain http: hand out the root certificate, send everything else to https
+http:// {
+	handle /friday-ca.crt {
+		root * /data/caddy/pki/authorities/local
+		rewrite * /root.crt
+		header Content-Type application/x-x509-ca-cert
+		file_server
+	}
+	handle {
+		redir https://{host}{uri}
+	}
+}
