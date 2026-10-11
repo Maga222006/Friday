@@ -51,6 +51,7 @@ async def speak_schedules(session: AgentSession, thread_id: str) -> None:
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
     if ctx.is_fake_job():
+
         user = await get_user(int(os.getenv("VOICE_USER_ID", "1")))
         thread_id = thread_for(user.id, CHANNEL)
         await client.threads.create(
@@ -58,6 +59,11 @@ async def entrypoint(ctx: JobContext) -> None:
             if_exists="do_nothing",
             metadata={"user_id": user.id, "channel": CHANNEL},
         )
+
+        async def _exit():
+            os._exit(1)
+
+        ctx.add_shutdown_callback(_exit)
     else:
         participant = await ctx.wait_for_participant()
         logger.info("participant joined: %s", participant.identity)
