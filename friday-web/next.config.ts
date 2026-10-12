@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   turbopack: { root: __dirname },
   // lets you open the dev server (npm run dev) from your phone on the LAN
   allowedDevOrigins: ["192.168.1.240", "*.local"],
+  // gzip holds back the forwarded run stream (/aegra/…/runs/stream) until the run ends,
+  // so replies, tool calls and thinking would only appear at the very end
+  compress: false,
   async rewrites() {
     return [
       { source: "/aegra/:path*", destination: `${AEGRA_INTERNAL_URL}/:path*` },

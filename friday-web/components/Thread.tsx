@@ -7,10 +7,10 @@ import {
   ThreadPrimitive,
   type FileMessagePartComponent,
   type ImageMessagePartComponent,
-  type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
 import { VoiceButton } from "./VoiceButton";
 import { MarkdownText } from "./MarkdownText";
+import { Reasoning, ToolCall, Working } from "./Activity";
 
 /* --------------------------------------------------------- files in chat */
 
@@ -25,43 +25,8 @@ const FilePart: FileMessagePartComponent = ({ filename, mimeType }) => (
   </span>
 );
 
-/* ------------------------------------------------------------ tool calls */
-
-const short = (v: unknown, max = 600) => {
-  const t = typeof v === "string" ? v : JSON.stringify(v, null, 2);
-  return t.length > max ? `${t.slice(0, max)}…` : t;
-};
-
-/** Every tool call, inline and collapsed: "🔧 weather · done". */
-const ToolCall: ToolCallMessagePartComponent = ({ toolName, args, result, status, isError }) => {
-  const state =
-    status.type === "running" ? "running…"
-    : isError || status.type === "incomplete" ? "failed"
-    : result === undefined ? "waiting"
-    : "done";
-  return (
-    <details className="group my-1 rounded-lg border border-black/10 text-xs dark:border-white/10">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1 text-neutral-600 select-none dark:text-neutral-400">
-        <span>🔧</span>
-        <span className="font-mono font-medium text-neutral-800 dark:text-neutral-200">{toolName}</span>
-        <span className={state === "failed" ? "text-red-500" : state === "running…" ? "animate-pulse" : ""}>
-          · {state}
-        </span>
-        <span className="ml-auto opacity-50 transition-transform group-open:rotate-90">›</span>
-      </summary>
-      <div className="space-y-1.5 border-t border-black/10 px-2 py-1.5 dark:border-white/10">
-        {args && Object.keys(args).length > 0 && (
-          <pre className="overflow-x-auto font-mono whitespace-pre-wrap opacity-80">{short(args)}</pre>
-        )}
-        {result !== undefined && (
-          <pre className="max-h-60 overflow-auto font-mono whitespace-pre-wrap">{short(result, 2000)}</pre>
-        )}
-      </div>
-    </details>
-  );
-};
-
-const parts = { Image: ImagePart, File: FilePart, tools: { Fallback: ToolCall } };
+// thinking and tool calls (live while running): see Activity.tsx
+const parts = { Image: ImagePart, File: FilePart, Reasoning, tools: { Fallback: ToolCall } };
 const DONE = { type: "complete" } as const;
 
 /* ------------------------------------------------------- message actions */
@@ -145,7 +110,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="group flex flex-col items-start px-3 py-1.5 sm:px-4">
       <div className="max-w-[92%] min-w-0 rounded-2xl rounded-bl-sm bg-neutral-100 px-4 py-2 text-sm text-neutral-900 sm:max-w-[80%] dark:bg-neutral-900 dark:text-neutral-100">
-        <MessagePrimitive.Parts components={{ ...parts, Text: MarkdownText }} />
+        <MessagePrimitive.Parts components={{ ...parts, Text: MarkdownText, Empty: Working }} />
         <MessagePrimitive.Error>
           <p className="mt-1 text-xs text-red-500">Something went wrong. Try regenerating.</p>
         </MessagePrimitive.Error>

@@ -1,5 +1,6 @@
 import { Client, type Cron, type Thread } from "@langchain/langgraph-sdk";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
+import { withSubagentProgress } from "./subagentProgress";
 
 export type Location = { name: string | null; timezone: string | null };
 export type User = {
@@ -111,13 +112,17 @@ export const streamRun = (
   signal: AbortSignal,
   checkpointId?: string,
 ) =>
-  client.runs.stream(threadId, ASSISTANT, {
-    input: { messages },
-    context: contextFor(user),
-    streamMode: ["messages", "updates"],
-    signal,
-    ...(checkpointId && { checkpointId }),
-  });
+  // subgraph events show what a subagent is doing inside its tool card (see subagentProgress.ts)
+  withSubagentProgress(
+    client.runs.stream(threadId, ASSISTANT, {
+      input: { messages },
+      context: contextFor(user),
+      streamMode: ["messages", "updates"],
+      streamSubgraphs: true,
+      signal,
+      ...(checkpointId && { checkpointId }),
+    }),
+  );
 
 /**
  * The checkpoint whose messages are exactly `parent` — where an edited message
