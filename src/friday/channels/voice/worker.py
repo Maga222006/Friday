@@ -83,8 +83,9 @@ async def entrypoint(ctx: JobContext) -> None:
         vad=silero.VAD.load(),
         stt=GeminiSTT(language_codes=["en-US", "ru-RU"]),
         tts=GeminiTTS(
-            model="gemini-3.8-flash-tts",
-            voice_name="Kore"
+            model="gemini-3.8-flash-lite-tts",
+            voice_name="Kore",
+            instructions=None
         ),
         llm=langchain.LLMAdapter(
             graph=VoiceRemoteGraph("friday", url=AEGRA_URL),
