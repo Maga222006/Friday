@@ -97,7 +97,6 @@ async def main() -> None:
         app, host=PUSH_HOST, port=PUSH_PORT, log_level="warning",
     ))
     logging.info("push endpoint on http://%s:%s/push", PUSH_HOST, PUSH_PORT)
-    await bot.delete_webhook()
     await asyncio.gather(dp.start_polling(bot), server.serve())
 
 

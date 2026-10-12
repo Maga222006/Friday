@@ -68,7 +68,7 @@ async def on_message(m: Message) -> None:
     stop = asyncio.Event()
     typing = asyncio.create_task(_typing(m, stop))
     try:
-        reply = await asyncio.wait_for(ask(user, "telegram", await _content(m)), 180)
+        reply = await asyncio.wait_for(ask(user, "telegram", await _content(m)), 1440)
     except asyncio.TimeoutError:
         reply = "That's taking too long — ask me again in a bit."
     except Exception as e:

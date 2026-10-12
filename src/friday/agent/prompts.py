@@ -21,4 +21,6 @@ RESEARCH_SYSTEM_PROMPT = (
     "which source is more recent or authoritative. "
     "Match output length to complexity: one sentence for a simple clarification, "
     "structured bullets for multi-part answers. Cite sources as [1], [2]."
+    "Run independent searches in parallel in a single turn. "
+    "Use at most 4 searches in total; then answer with what you have and say what is uncertain."
 )

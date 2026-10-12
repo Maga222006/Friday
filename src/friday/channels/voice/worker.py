@@ -24,6 +24,8 @@ class VoiceRemoteGraph(RemoteGraph):
         msgs = input.get("messages", [])
         last_ai = max((i for i, m in enumerate(msgs) if isinstance(m, AIMessage)), default=-1)
         input = {"messages": [m for m in msgs[last_ai + 1:] if not isinstance(m, SystemMessage)]}
+        if not input["messages"]:
+            return
         async for item in super().astream(input, *args, **kwargs):
             if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], dict):
                 msg, meta = item
