@@ -101,7 +101,9 @@ NEXT_PUBLIC_ASSISTANT_ID=friday
 
 ### `config.yaml`
 
-Models and MCP servers. Edit it here or in the web UI (⚙ Config), then restart Aegra.
+Models and MCP servers. Edit it here or in the web UI (⚙ Config). With Docker, Aegra restarts with it within
+seconds (`config-reload` service); a config that doesn't load is not applied, see `docker compose logs config-reload`.
+Running locally, restart Aegra yourself.
 
 ```yaml
 models:
@@ -135,7 +137,7 @@ worker. Useful commands:
 
 ```bash
 docker compose logs -f friday        # agent server logs (also: bot, voice, web)
-docker compose restart friday bot voice   # pick up Python / config.yaml changes (src/ is mounted)
+docker compose restart friday bot voice   # pick up Python changes (src/ is mounted)
 docker compose down                  # stop everything (data is kept)
 ```
 

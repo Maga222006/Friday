@@ -77,7 +77,7 @@ export function ConfigEditor({ onClose }: { onClose: () => void }) {
       setConflict(false);
       setStatus({
         kind: "ok",
-        msg: `Saved${j.backedUp ? " (previous version in config.yaml.bak)" : ""}. Restart Aegra and the voice worker to apply.`,
+        msg: `Saved${j.backedUp ? " (previous version in config.yaml.bak)" : ""}. Friday restarts with it in a few seconds (with Docker; otherwise restart Aegra).`,
       });
     } catch (e) {
       setStatus({ kind: "error", msg: (e as Error).message });

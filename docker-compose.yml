@@ -128,6 +128,18 @@ services:
       - friday
       - bot
 
+  # restarts Aegra when config.yaml changes (web ⚙ Config or by hand); see docker/config-reload.sh
+  config-reload:
+    image: docker:cli
+    container_name: friday-config-reload
+    restart: unless-stopped
+    command: ["sh", "/friday/docker/config-reload.sh"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # to restart friday-api
+      - .:/friday:ro
+    depends_on:
+      - friday
+
   # HTTPS for the UI on the home network (voice needs it there); see docker/Caddyfile
   https:
     image: caddy:2-alpine
