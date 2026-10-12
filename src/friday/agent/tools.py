@@ -90,12 +90,14 @@ async def push_on_telegram(text: str, runtime: ToolRuntime[Ctx]) -> str:
     chat_id = runtime.context.user.telegram_id
     if not chat_id:
         return "No Telegram for this user."
-    async with httpx.AsyncClient() as c:
-        r = await c.post("http://localhost:8100/push",
-                     json={"chat_id": int(chat_id), "text": text})
-        if r.status_code != 200:
-            return f"Telegram push failed ({r.status_code})."
-
+    try:
+        async with httpx.AsyncClient() as c:
+            r = await c.post(os.getenv("PUSH_URL", "http://localhost:8100/push"),
+                             json={"chat_id": int(chat_id), "text": text})
+    except httpx.HTTPError as e:
+        return f"Telegram push failed: {str(e)}"
+    if r.status_code != 200:
+        return f"Telegram push failed ({r.status_code})."
     return "Sent."
 
 
