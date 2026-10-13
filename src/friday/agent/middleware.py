@@ -8,7 +8,7 @@ from langgraph.errors import GraphBubbleUp
 
 
 @wrap_tool_call
-async def tool_error_as_messages(request, handler):
+async def tool_errors_as_messages(request, handler):
     try:
         return await handler(request)
     except GraphBubbleUp:
