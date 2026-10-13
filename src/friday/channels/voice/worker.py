@@ -96,7 +96,7 @@ async def entrypoint(ctx: JobContext) -> None:
         turn_handling={"preemptive_generation": {"enabled": False}},
     )
     if room_mic:
-        session.on("close", lambda ev: os.exit(1))
+        session.on("close", lambda ev: os._exit(1))
     await session.start(room=ctx.room, agent=Agent(instructions="Speak naturally and briefly. No markdown, no lists."))
     task = asyncio.create_task(speak_schedules(session, thread_id))
     async def _stop():
