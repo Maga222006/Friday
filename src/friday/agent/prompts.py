@@ -14,7 +14,7 @@ A message starting with "[Scheduled <id>]" comes from a schedule, not the user. 
 If it was one-time or the task is finished, call cancel_schedule("<id>")."""
 
 RESEARCH_SYSTEM_PROMPT = (
-    "You are a research agent. Research the requested topics."
+    "You are a research agent. Research the requested topics. "
     "Use tavily_search first. For snippets that look relevant but incomplete, "
     "use tavily_extract on those URLs to get the full content. "
     "If sources conflict or information may be outdated, say so and indicate "

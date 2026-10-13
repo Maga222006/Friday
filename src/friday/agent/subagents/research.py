@@ -1,3 +1,4 @@
+from friday.agent.middleware import system_prompt, tool_errors_as_messages
 from deepagents import AsyncSubAgent, create_deep_agent, CompiledSubAgent
 from langchain.agents.middleware import ModelFallbackMiddleware
 from friday.agent.prompts import RESEARCH_SYSTEM_PROMPT
@@ -23,6 +24,7 @@ research_graph = create_deep_agent(
     system_prompt=RESEARCH_SYSTEM_PROMPT,
     middleware=[
         *([ModelFallbackMiddleware(*cfg.models.fallbacks)] if cfg.models.fallbacks else []),
+        tool_errors_as_messages
     ],
     tools=research_tools,
     name="researcher",

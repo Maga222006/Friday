@@ -1,5 +1,5 @@
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
-from langchain_core.messages import AIMessageChunk, AIMessage, SystemMessage
+from langchain_core.messages import AIMessageChunk, AIMessage, SystemMessage, HumanMessage
 from livekit.plugins.google.beta import GeminiSTT, GeminiTTS
 from friday.bridge import client, thread_for, _as_text
 from langgraph.pregel.remote import RemoteGraph
@@ -20,13 +20,17 @@ AEGRA_URL = os.getenv("AEGRA_URL", "http://localhost:2026")
 CHANNEL = "voice"
 
 class VoiceRemoteGraph(RemoteGraph):
+
+    def __init__(self, *args, thread_id: str, metadata: dict, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.thread_id, self.metadata = thread_id, metadata
+
     async def astream(self, input, *args, **kwargs):
-        msgs = input.get("messages", [])
-        last_ai = max((i for i, m in enumerate(msgs) if isinstance(m, AIMessage)), default=-1)
-        input = {"messages": [m for m in msgs[last_ai + 1:] if not isinstance(m, SystemMessage)]}
-        if not input["messages"]:
+        said = [m for m in input.get("messages", [])[-1:] if isinstance(m, HumanMessage)]
+        if not said:
             return
-        async for item in super().astream(input, *args, **kwargs):
+        await client.threads.create(thread_id=self.thread_id, if_exists="do_nothing", metadata=self.metadata)
+        async for item in super().astream({"messages": said}, *args, **kwargs):
             if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], dict):
                 msg, meta = item
                 if not str(msg.get("type", "")).lower().startswith("ai"):
@@ -52,18 +56,13 @@ async def speak_schedules(session: AgentSession, thread_id: str) -> None:
 
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
-    if ctx.is_fake_job():
+    room_mic = ctx.is_fake_job()
+    if room_mic:
         async def _exit():
             os._exit(1)
         ctx.add_shutdown_callback(_exit)
-
         user = await get_user(int(os.getenv("VOICE_USER_ID", "1")))
         thread_id = thread_for(user.id, CHANNEL)
-        await client.threads.create(
-            thread_id=thread_id,
-            if_exists="do_nothing",
-            metadata={"user_id": user.id, "channel": CHANNEL},
-        )
     else:
         participant = await ctx.wait_for_participant()
         logger.info("participant joined: %s", participant.identity)
@@ -79,6 +78,7 @@ async def entrypoint(ctx: JobContext) -> None:
             return
         logger.info("serving %s (id=%s)", user.username, user.id)
         thread_id = participant.attributes.get("thread_id") or thread_for(user.id, CHANNEL)
+
     session = AgentSession(
         vad=silero.VAD.load(),
         stt=GeminiSTT(language_codes=["en-US", "ru-RU"]),
@@ -88,17 +88,19 @@ async def entrypoint(ctx: JobContext) -> None:
             instructions=None
         ),
         llm=langchain.LLMAdapter(
-            graph=VoiceRemoteGraph("friday", url=AEGRA_URL),
+            graph=VoiceRemoteGraph("friday", url=AEGRA_URL, thread_id=thread_id,
+                                   metadata={"user_id": user.id, "channel": CHANNEL}),
             config={"configurable": {"thread_id": thread_id}},
             context=Ctx(user=user, channel=CHANNEL).model_dump(mode="json"),
         ),
+        turn_handling={"preemptive_generation": {"enabled": False}},
     )
-    await session.start(
-        room=ctx.room,
-        agent=Agent(instructions="Speak naturally and briefly. No markdown, no lists."),
-    )
+    if room_mic:
+        session.on("close", lambda ev: os.exit(1))
+    await session.start(room=ctx.room, agent=Agent(instructions="Speak naturally and briefly. No markdown, no lists."))
     task = asyncio.create_task(speak_schedules(session, thread_id))
-    async def _stop(): task.cancel()
+    async def _stop():
+        task.cancel()
     ctx.add_shutdown_callback(_stop)
 
 if __name__ == "__main__":

@@ -17,8 +17,6 @@ import asyncio
 import logging
 import os
 
-
-
 load_dotenv()
 
 bot = Bot(
@@ -91,7 +89,7 @@ async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     dp = Dispatcher()
     dp.include_router(router)
-    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.delete_webhook()
 
     server = uvicorn.Server(uvicorn.Config(
         app, host=PUSH_HOST, port=PUSH_PORT, log_level="warning",

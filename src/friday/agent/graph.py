@@ -1,9 +1,9 @@
 """Main Friday graph. Must expose a module-level `graph` object."""
 from deepagents.backends import CompositeBackend, StateBackend, LocalShellBackend
 from friday.agent.subagents.research import research_agent, research_agent_async
+from friday.agent.middleware import system_prompt, tool_errors_as_messages
 from langchain.agents.middleware import ModelFallbackMiddleware
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from friday.agent.middleware import system_prompt
 from deepagents import create_deep_agent
 from friday.agent.context import Ctx
 from friday.agent.tools import tools
@@ -42,6 +42,7 @@ async def build_graph():
         subagents=[research_agent, research_agent_async],
         middleware=[
             *([ModelFallbackMiddleware(*cfg.models.fallbacks)] if cfg.models.fallbacks else []),
+            tool_errors_as_messages,
             system_prompt
         ],
         backend=backend,
