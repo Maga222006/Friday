@@ -104,25 +104,62 @@ export const threadTitle = (t: Thread): string => {
 
 /* ------------------------------------------------------------------- runs */
 
-/** `checkpointId` forks the run from an earlier point (edit / regenerate). */
-export const streamRun = (
+// Set by the Stop button right before the runtime drops the stream (see Thread.tsx).
+let stopRequested = false;
+export const requestStop = () => {
+  stopRequested = true;
+};
+
+/** Cancels the run, or (without an id) whatever is running on the thread. */
+export const cancelRuns = async (threadId: string, runId?: string) => {
+  const ids = runId
+    ? [runId]
+    : (await client.runs.list(threadId, { limit: 10 }))
+        .filter((r) => r.status === "pending" || r.status === "running")
+        .map((r) => r.run_id);
+  await Promise.all(ids.map((id) => client.runs.cancel(threadId, id)));
+};
+
+/**
+ * Starts a run and streams it. The run keeps going on the server when this stream
+ * goes away (thread switched, page closed or reloaded): only the Stop button cancels it.
+ * `checkpointId` forks the run from an earlier point (edit / regenerate).
+ */
+export async function* streamRun(
   threadId: string,
   messages: LangChainMessage[],
   user: User,
   signal: AbortSignal,
   checkpointId?: string,
-) =>
-  // subgraph events show what a subagent is doing inside its tool card (see subagentProgress.ts)
-  withSubagentProgress(
-    client.runs.stream(threadId, ASSISTANT, {
-      input: { messages },
-      context: contextFor(user),
-      streamMode: ["messages", "updates"],
-      streamSubgraphs: true,
-      signal,
-      ...(checkpointId && { checkpointId }),
-    }),
-  );
+) {
+  let runId: string | undefined;
+  stopRequested = false;
+  const onAbort = () => {
+    if (!stopRequested) return; // just leaving: let it finish in the background
+    stopRequested = false;
+    void cancelRuns(threadId, runId).catch(() => {});
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    // subgraph events show what a subagent is doing inside its tool card (see subagentProgress.ts)
+    for await (const ev of withSubagentProgress(
+      client.runs.stream(threadId, ASSISTANT, {
+        input: { messages },
+        context: contextFor(user),
+        streamMode: ["messages", "updates"],
+        streamSubgraphs: true,
+        onDisconnect: "continue",
+        signal,
+        ...(checkpointId && { checkpointId }),
+      }),
+    )) {
+      if (ev.event === "metadata") runId = (ev.data as { run_id?: string }).run_id ?? runId;
+      yield ev;
+    }
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
 
 /**
  * The checkpoint whose messages are exactly `parent` — where an edited message

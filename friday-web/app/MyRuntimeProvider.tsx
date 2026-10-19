@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AssistantRuntimeProvider, type AssistantRuntime } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import {
@@ -15,6 +15,11 @@ import {
 import { createAegraThreadListAdapter } from "@/lib/aegraThreadList";
 import { createLiveKitVoiceAdapter } from "@/lib/livekitVoice";
 import { fileAttachments } from "@/lib/attachments";
+
+/** The open thread's id while it has a run going on the server that this tab isn't
+ *  streaming (started before a reload, in another tab…), else undefined. */
+const BusyContext = createContext<string | undefined>(undefined);
+export const useBusyThread = () => useContext(BusyContext);
 
 const titleFrom = (text: string) =>
   text.replace(/\s+/g, " ").trim().slice(0, 60) || "New chat";
@@ -37,6 +42,8 @@ export function MyRuntimeProvider({
 }) {
   // filled after render; only read from voice callbacks, which run on user action
   const runtimeRef = useRef<AssistantRuntime | null>(null);
+  const [busyThread, setBusyThread] = useState<string | undefined>();
+  const busy = threadId && busyThread === threadId ? threadId : undefined;
 
   const threadList = useMemo(() => createAegraThreadListAdapter(user), [user]);
 
@@ -111,6 +118,7 @@ export function MyRuntimeProvider({
   useEffect(() => {
     if (!threadId) return;
     let last: string | undefined;
+    let steps: number | undefined;
     let ownRun = false;
     const tick = async () => {
       if (document.hidden) return;
@@ -121,12 +129,23 @@ export function MyRuntimeProvider({
         return;
       }
       try {
-        const { updated_at } = await getThread(threadId);
+        const { updated_at, status } = await getThread(threadId);
+        setBusyThread(status === "busy" ? threadId : undefined);
+        const draft = runtime.thread.composer.getState();
+        const typing = !!(draft.text.trim() || draft.attachments.length); // don't wipe it; retry next tick
+        if (status === "busy") {
+          // a run this tab isn't streaming: show each step as it's saved
+          const n = (await getThreadState(threadId)).values?.messages?.length ?? 0;
+          if (steps !== undefined && n !== steps && !typing) {
+            onExternalUpdate();
+            return;
+          }
+          steps = n;
+        }
         if (ownRun) {
           ownRun = false; // the change is our own finished run: just move the baseline
         } else if (last !== undefined && updated_at !== last) {
-          const draft = runtime.thread.composer.getState();
-          if (draft.text.trim() || draft.attachments.length) return; // don't wipe what's being typed; retry next tick
+          if (typing) return;
           onExternalUpdate();
           onThreadsChanged();
           return;
@@ -147,5 +166,9 @@ export function MyRuntimeProvider({
     };
   }, [threadId, runtime, onThreadsChanged, onThreadIdChange, onExternalUpdate]);
 
-  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <BusyContext.Provider value={busy}>{children}</BusyContext.Provider>
+    </AssistantRuntimeProvider>
+  );
 }

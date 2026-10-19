@@ -11,6 +11,8 @@ import {
 import { VoiceButton } from "./VoiceButton";
 import { MarkdownText } from "./MarkdownText";
 import { Reasoning, ToolCall, Working } from "./Activity";
+import { useBusyThread } from "@/app/MyRuntimeProvider";
+import { cancelRuns, requestStop } from "@/lib/chatApi";
 
 /* --------------------------------------------------------- files in chat */
 
@@ -125,7 +127,11 @@ function AssistantMessage() {
   );
 }
 
+const stopBtn = "rounded-xl border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700";
+
 export function Thread() {
+  // a run started before this page was (re)opened: it keeps going; wait for it rather than starting a second one
+  const busyThread = useBusyThread();
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto py-4">
@@ -137,6 +143,12 @@ export function Thread() {
         </div>
       </ThreadPrimitive.Viewport>
 
+      {busyThread && (
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-2 px-4 pb-1 text-xs text-neutral-500">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-[1.5px] border-current border-t-transparent opacity-70" />
+          Friday is still working on this. New steps show up here as they finish.
+        </div>
+      )}
       <ComposerPrimitive.Root className="border-t border-neutral-200 dark:border-neutral-800">
         <ComposerPrimitive.AttachmentDropzone className="mx-auto flex w-full max-w-3xl flex-col gap-2 p-2 sm:p-3 data-[dragging=true]:bg-sky-50 dark:data-[dragging=true]:bg-sky-950/40">
           <div className="flex flex-wrap gap-1.5 empty:hidden">
@@ -153,20 +165,30 @@ export function Thread() {
             <ComposerPrimitive.Input
               rows={1}
               autoFocus
+              submitOnEnter={!busyThread}
               placeholder="Message Friday…"
               className="max-h-40 min-w-0 flex-1 resize-none rounded-xl border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-neutral-500 dark:border-neutral-700"
             />
             <VoiceButton />
-            <ThreadPrimitive.If running={false}>
-              <ComposerPrimitive.Send className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900">
-                Send
-              </ComposerPrimitive.Send>
-            </ThreadPrimitive.If>
-            <ThreadPrimitive.If running>
-              <ComposerPrimitive.Cancel className="rounded-xl border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700">
+            {busyThread ? (
+              <button type="button" onClick={() => void cancelRuns(busyThread)} className={stopBtn}>
                 Stop
-              </ComposerPrimitive.Cancel>
-            </ThreadPrimitive.If>
+              </button>
+            ) : (
+              <>
+                <ThreadPrimitive.If running={false}>
+                  <ComposerPrimitive.Send className="rounded-xl bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-40 dark:bg-neutral-100 dark:text-neutral-900">
+                    Send
+                  </ComposerPrimitive.Send>
+                </ThreadPrimitive.If>
+                <ThreadPrimitive.If running>
+                  {/* only Stop cancels the run; leaving the page lets it finish */}
+                  <ComposerPrimitive.Cancel onClick={requestStop} className={stopBtn}>
+                    Stop
+                  </ComposerPrimitive.Cancel>
+                </ThreadPrimitive.If>
+              </>
+            )}
           </div>
         </ComposerPrimitive.AttachmentDropzone>
       </ComposerPrimitive.Root>

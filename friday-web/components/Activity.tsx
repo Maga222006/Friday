@@ -8,6 +8,7 @@ import {
 } from "@assistant-ui/react";
 import { MarkdownText } from "./MarkdownText";
 import { describeCall, thoughtTitle, useSubagentRun, type SubRun } from "@/lib/subagentProgress";
+import { useBusyThread } from "@/app/MyRuntimeProvider";
 
 /* ---------------------------------------------------------------- helpers */
 
@@ -143,7 +144,10 @@ function SubagentSteps({ run, live }: { run: SubRun; live: boolean }) {
  * a timer; for subagents also their live steps. Click for the arguments and the result.
  */
 export const ToolCall: ToolCallMessagePartComponent = ({ toolCallId, toolName, args, result, status, isError }) => {
-  const threadRunning = useAuiState((s) => s.thread.isRunning);
+  // running here, or in a run this tab isn't streaming (started before a reload)
+  const streaming = useAuiState((s) => s.thread.isRunning);
+  const busyThread = useBusyThread();
+  const threadRunning = streaming || !!busyThread;
   const run = useSubagentRun(toolCallId);
   const [open, setOpen] = useState(false);
 
